@@ -1673,10 +1673,17 @@ function closeAddSpecialistModal(){
   document.getElementById('addSpecialistModal')?.classList.add('hidden');
 }
 
-function saveSpecialist(){
-  const name = String(document.getElementById('newSpecialistName')?.value || '').trim();
-  const specialty = String(document.getElementById('newSpecialistSpecialty')?.value || '').trim();
-  const active = document.getElementById('newSpecialistStatus')?.value === 'active';
+async function saveSpecialist(){
+  const name = String(
+    document.getElementById('newSpecialistName')?.value || ''
+  ).trim();
+
+  const specialty = String(
+    document.getElementById('newSpecialistSpecialty')?.value || ''
+  ).trim();
+
+  const active =
+    document.getElementById('newSpecialistStatus')?.value === 'active';
 
   if(!name){
     alert('Ingresa el nombre de la especialista.');
@@ -1684,35 +1691,66 @@ function saveSpecialist(){
     return;
   }
 
-  if(specialistEditId){
-    const item = specialists.find(
-      s => String(s.id) === String(specialistEditId)
-    );
-
-    if(item){
-      item.name = name;
-      item.specialty = specialty || 'Sin especialidad';
-      item.active = active;
-    }
-  }else{
-    /*
-      Alta local temporal.
-      La persistencia de altas/ediciones en Google Sheets
-      se implementará en la Etapa 3 (Configuración).
-    */
-    specialists.push({
-      id: `LOCAL-${Date.now()}`,
-      name,
-      specialty: specialty || 'Sin especialidad',
-      active
-    });
+  if(!specialty){
+    alert('Ingresa la especialidad.');
+    document.getElementById('newSpecialistSpecialty')?.focus();
+    return;
   }
 
-  specialistEditId = null;
-  renderSpecialistsSettings();
-  renderStaffOptions();
-  renderAppointmentSpecialists();
-  closeAddSpecialistModal();
+  const especialistaApi = {
+    idEspecialista:
+      specialistEditId
+        ? String(specialistEditId)
+        : '',
+
+    nombre:
+      name,
+
+    especialidad:
+      specialty,
+
+    estado:
+      active
+        ? 'Activo'
+        : 'Inactivo'
+  };
+
+  try{
+    await enviarApi(
+      'guardarEspecialista',
+      {
+        especialista:
+          especialistaApi
+      }
+    );
+
+    // Google Sheets es la fuente de verdad.
+    // Se recarga el catálogo completo después de crear o editar.
+    await cargarEspecialistasDesdeApi({
+      force: true
+    });
+
+    specialistEditId = null;
+
+    closeAddSpecialistModal();
+
+    toast(
+      especialistaApi.idEspecialista
+        ? 'Especialista actualizado correctamente.'
+        : 'Especialista registrado correctamente.'
+    );
+
+  }catch(error){
+    console.error(
+      'Error al guardar especialista:',
+      error
+    );
+
+    toast(
+      error.message ||
+      'No se pudo guardar la especialista.'
+    );
+  }
 }
 
 function editSpecialist(id){
