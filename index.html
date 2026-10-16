@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LUNA ESTÉTICA — Prototipo</title>
+<!-- Estilos separados para mantener la interfaz y la lógica independientes. -->
+<link rel="stylesheet" href="luna_estetica.css"/>
+</head>
+<body>
+<div class="app">
+
+
+<section id="landing">
+  <div class="landing-card card">
+    <div class="landing-brand-row">
+      <div class="logo-luna logo-luna--landing">
+        <div class="logo-luna__nombre">LUNA</div>
+        <div class="logo-luna__subtitulo">ESTÉTICA</div>
+      </div>
+    </div>
+
+    
+
+    <div class="landing-branch-grid">
+      <button class="branch-choice" type="button" onclick="showPatient('Sede Villasol')">
+        <span class="branch-choice__name">Sede Villasol</span>
+      </button>
+      <button class="branch-choice" type="button" onclick="showPatient('Sede 2')">
+        <span class="branch-choice__name">Sede 2</span>
+      </button>
+    </div>
+
+    <button class="staff-choice" type="button" onclick="showStaffSelector()">
+      <span class="staff-choice__icon">✦</span>
+      <span>Soy personal de Luna Estética</span>
+    </button>
+  </div>
+</section>
+
+
+<section id="patient" class="hidden">
+  <div class="phone">
+    <div class="phone-head">
+      <div class="logo-luna"><div class="logo-luna__nombre">LUNA</div><div class="logo-luna__subtitulo">ESTÉTICA</div></div>
+      <button class="btn text" onclick="goLanding()">Salir</button>
+    </div>
+    <div id="patientForm">
+      <div class="progress-label eyebrow" id="progressLabel">PASO 1 DE 3</div>
+      <div class="progress"><div id="progressBar" style="width:33.333%"></div></div>
+
+      <div class="step active" data-step="1">
+        <h2>Datos personales</h2>
+        <p class="muted">Completa tus datos para iniciar tu atención.</p>
+        <div class="form-stack">
+          <div><label>NOMBRE</label><input id="patientName" placeholder="Ingresa tu nombre"/></div>
+          <div><label>APELLIDO</label><input id="patientLastName" placeholder="Ingresa tu apellido"/></div>
+          <div class="grid g2"><div><label>DNI</label><input id="dni" inputmode="numeric" maxlength="8" placeholder="8 dígitos"/></div><div><label>CELULAR</label><input id="cel" inputmode="numeric" maxlength="9" placeholder="9 dígitos"/></div></div>
+          <div>
+            <label>FECHA DE NACIMIENTO</label>
+            <div class="dob-grid">
+              <select id="birthDay" class="big-select" aria-label="Día"></select>
+              <select id="birthMonth" class="big-select" aria-label="Mes"></select>
+              <select id="birthYear" class="big-select" aria-label="Año"></select>
+            </div>
+            <div class="small-note" style="margin-top:8px">Solo se muestran años válidos para mayores de 18 años.</div>
+          </div>
+          <input id="ageField" value="30 años" type="hidden"/>
+          <div class="grid g2">
+            <div>
+              <label>DISTRITO</label>
+              <select id="patientDistrict" onchange="toggleOtherDistrict()">
+                <option value="">Seleccionar distrito</option>
+                <option>Carabayllo</option>
+                <option>Comas</option>
+                <option>Independencia</option>
+                <option>Los Olivos</option>
+                <option>Puente Piedra</option>
+                <option>San Martín de Porres</option>
+                <option value="Otros">Otros</option>
+              </select>
+              <div id="otherDistrictWrap" class="hidden" style="margin-top:10px">
+                <input id="otherDistrict" placeholder="Escribe tu distrito"/>
+              </div>
+            </div>
+            <div>
+              <label>OCUPACIÓN</label>
+              <input id="patientOccupation" placeholder="Ingresa tu ocupación"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" data-step="2">
+        <h2>Información adicional</h2>
+        <p class="muted">Cuéntanos lo necesario para brindarte una mejor atención.</p>
+
+        <div class="form-stack">
+          <div class="additional-questions-grid">
+            <div class="additional-question-card">
+              <label>¿INTERVENCIÓN PREVIA EN EL ROSTRO? (LÁSER, PEELING, BOTOX, ETC.)</label>
+              <div class="question-inline-row">
+                <div class="binary-options" data-group="previousFaceProcedure">
+                  <button type="button" class="binary-option active" data-value="No" onclick="selectBinaryOption(this)">No</button>
+                  <button type="button" class="binary-option" data-value="Sí" onclick="selectBinaryOption(this)">Sí</button>
+                </div>
+                <div id="previousFaceProcedureDetailsWrap" class="hidden">
+                  <input id="previousFaceProcedureDetails" placeholder="Especifica cuál fue la intervención"/>
+                </div>
+              </div>
+            </div>
+
+            <div class="additional-question-card">
+              <label>¿ES TU PRIMERA LIMPIEZA FACIAL?</label>
+              <div class="binary-options" data-group="firstFacialCleaning">
+                <button type="button" class="binary-option active" data-value="Sí" onclick="selectBinaryOption(this)">Sí</button>
+                <button type="button" class="binary-option" data-value="No" onclick="selectBinaryOption(this)">No</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label>ALERGIA O ENFERMEDAD A TENER EN CUENTA</label>
+            <textarea id="patientAllergy" rows="5" placeholder="Ej. alergias, medicamentos o antecedentes importantes"></textarea>
+          </div>
+
+          <div>
+            <label>¿CÓMO NOS CONOCISTE?</label>
+            <div class="chips" id="referralChips"></div>
+          </div>
+
+          <div id="otherReferral" class="hidden">
+            <label>ESPECIFIQUE</label>
+            <input placeholder="Cuéntanos cómo nos conociste"/>
+          </div>
+
+          <div class="inline-consent-box">
+            <div class="inline-consent-text">
+              <label>CONSENTIMIENTO</label>
+              <p>He sido informado(a) sobre el procedimiento, sus posibles reacciones y cuidados posteriores. Acepto realizarme el tratamiento de forma voluntaria y me comprometo a seguir las indicaciones brindadas.</p>
+            </div>
+            <label class="inline-consent-check">
+              <input id="consent" type="checkbox" style="width:auto"/>
+              <span>He leído y acepto</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" data-step="3">
+        <div class="success"><div class="check">✦</div><h2>Registro completado</h2><p class="muted">Tu información fue registrada correctamente.</p></div>
+      </div>
+
+      <div class="nextbar" id="patientButtons">
+        <button id="backBtn" class="btn light hidden" onclick="patientPrev()">Atrás</button>
+        <button id="nextBtn" class="btn dark" onclick="patientNext()">Continuar</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="admin" class="hidden" style="background:#ffffff">
+<div class="admin-shell">
+  <aside class="sidebar">
+    <div class="logo-luna"><div class="logo-luna__nombre">LUNA</div><div class="logo-luna__subtitulo">ESTÉTICA</div></div>
+    <button id="tabletMenuBtn" class="tablet-menu-btn" type="button" onclick="toggleTabletMenu()" aria-label="Abrir menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav">
+      <button data-page="home" onclick="showAdmin('home')"><span class="nav-label">Inicio</span></button>
+      <button data-page="patients" onclick="showAdmin('profile')"><span class="nav-label">Pacientes</span></button>
+      <button data-page="appointments" onclick="showAdmin('appointment')"><span class="nav-label">Atenciones</span></button>
+      <button class="mobile-more-btn" data-page="more" onclick="openMobileMore()">☰ &nbsp; Más</button>
+      <button data-page="agenda" onclick="showAdmin('agenda')"><span class="nav-label">Agenda del día</span></button>
+      <button data-page="settings" onclick="showAdmin('settings')"><span class="nav-label">Configuración</span></button>
+    </div>
+
+
+  </aside>
+  <main class="main">
+
+    <div id="adminHome" class="admin-page">
+      <div class="admin-top"><div><h2>Buenos días</h2><div class="muted">Jueves, 10 de septiembre</div></div><button class="btn light" onclick="goLanding()">Cerrar sesión</button></div>
+      <div class="search-panel card">
+        <div class="eyebrow">PACIENTES</div>
+        <h1>Encuentra a tu paciente</h1>
+        <p class="muted">Busca por nombre, DNI, celular o ID de paciente.</p>
+        <div class="search-row"><div class="searchbox"><input id="searchInput" placeholder="Buscar paciente..." oninput="renderSearch()"/></div><button class="btn dark" onclick="showPatient()">+ Nuevo paciente</button></div>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <div class="section-title"><h3>Pacientes recientes</h3><button class="btn text" type="button" onclick="openAllPatientsModal()">Ver todos</button></div>
+      <div id="recentPatients"></div>
+      <div class="section-title">
+        <h3>Próximos cumpleaños</h3>
+      </div>
+      <div id="upcomingBirthdays" class="birthday-grid"></div>
+    </div>
+
+    <div id="agenda" class="admin-page hidden">
+      <div class="admin-top">
+        <div>
+          <div class="muted" style="font-size:12px">Agenda / Hoy</div>
+          <h2 style="margin-top:5px">Agenda del día</h2>
+        </div>
+        <div class="top-actions">
+          <button class="btn light" onclick="showPatient()">+ Nuevo paciente</button>
+          <button class="btn dark" onclick="showAdmin('appointment')">+ Nueva atención</button>
+        </div>
+      </div>
+
+      <div class="agenda-hero">
+        <div class="agenda-summary card">
+          <div class="agenda-summary__kpi"><span>Total citas</span><strong>3</strong></div>
+          <div class="agenda-summary__kpi"><span>Primera cita</span><strong>10:30</strong></div>
+          <div class="agenda-summary__kpi"><span>Última cita</span><strong>16:30</strong></div>
+        </div>
+      </div>
+
+      <div class="agenda-main card">
+        <div class="agenda-main__head">
+          <div><h3>Atenciones programadas</h3><div class="muted">Jueves, 10 de septiembre</div></div>
+          <button class="btn light" type="button" onclick="showAdmin('agenda')">Ver agenda completa</button>
+        </div>
+
+        <div class="agenda-table">
+          <div class="agenda-table__row agenda-table__head">
+            <div>Hora</div><div>Paciente</div><div>Servicio</div><div>Especialista</div><div>Estado</div><div>Acción</div>
+          </div>
+
+          <div class="agenda-table__row">
+            <div class="agenda-time">10:30</div>
+            <div><strong>Andrea Ramírez</strong><div class="muted">DNI 74251863</div></div>
+            <div>Hydra Facial</div>
+            <div>Brenda</div>
+            <div><span class="status-pill">En agenda</span></div>
+            <div><button class="btn light" onclick="viewPatient('${p.dni}')">Ver ficha</button></div>
+          </div>
+
+          <div class="agenda-table__row">
+            <div class="agenda-time">12:00</div>
+            <div><strong>Camila Pérez</strong><div class="muted">DNI 70111222</div></div>
+            <div>Limpieza profunda</div>
+            <div>Valeria</div>
+            <div><span class="status-pill">Confirmada</span></div>
+            <div><button class="btn light" onclick="showAdmin('profile')">Ver ficha</button></div>
+          </div>
+
+          <div class="agenda-table__row">
+            <div class="agenda-time">16:30</div>
+            <div><strong>Lucía Torres</strong><div class="muted">DNI 70555111</div></div>
+            <div>Peeling facial</div>
+            <div>Brenda</div>
+            <div><span class="status-pill">Pendiente</span></div>
+            <div><button class="btn light" onclick="showAdmin('profile')">Ver ficha</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings" class="admin-page hidden">
+      <div class="admin-top">
+        <div>
+          <div class="muted" style="font-size:12px">Configuración</div>
+          <h2 style="margin-top:5px">Catálogos y parámetros</h2>
+        </div>
+      </div>
+
+      <div class="settings-layout">
+        <aside class="settings-nav card">
+          <div class="eyebrow">SECCIONES</div>
+          <button class="settings-tab active" onclick="showSettingsTab('general', this)">General</button>
+          <button class="settings-tab" onclick="showSettingsTab('specialists', this)">Especialistas</button>
+          <button class="settings-tab" onclick="showSettingsTab('diagnostics', this)">Diagnósticos</button>
+          <button class="settings-tab" onclick="showSettingsTab('treatments', this)">Tratamientos</button>
+          <button class="settings-tab" onclick="showSettingsTab('products', this)">Productos</button>
+        </aside>
+
+        <div class="settings-content">
+          <div id="settings-general" class="settings-panel active">
+            <div class="settings-header card">
+              <div>
+                <div class="eyebrow">GENERAL</div>
+                <h3>Parámetros principales</h3>
+                <p class="muted">Configura la base operativa del sistema en un solo lugar.</p>
+              </div>
+              <button class="btn light" onclick="showGeneralSaved()">Guardar cambios</button>
+            </div>
+            <div class="settings-grid-pro">
+              <div class="settings-card card">
+                <h4>Sedes</h4>
+                <div id="branchesList" class="settings-mini-list"></div>
+                <button class="btn dark" onclick="openSimpleListModal('branch')">+ Agregar sede</button>
+              </div>
+              <div class="settings-card card">
+                <h4>Medios de pago</h4>
+                <div id="paymentMethodsList" class="settings-mini-list"></div>
+                <button class="btn dark" onclick="openSimpleListModal('payment')">+ Agregar medio de pago</button>
+              </div>
+              <div class="settings-card card">
+                <h4>Consentimiento</h4>
+                <p class="muted">Texto legal que el paciente acepta al registrarse.</p>
+                <div id="consentVersionBox" class="settings-note"></div>
+                <button class="btn light" onclick="openConsentModal()">Editar consentimiento</button>
+              </div>
+              <div class="settings-card card">
+                <h4>Estados de cita</h4>
+                <div id="statusesList" class="settings-mini-list"></div>
+                <button class="btn light" onclick="openSimpleListModal('status')">Administrar estados</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="settings-specialists" class="settings-panel hidden">
+            <div class="settings-header card">
+              <div>
+                <div class="eyebrow">PERSONAL</div>
+                <h3>Especialistas</h3>
+                <p class="muted">Administra los nombres de los especialistas que atenderán en el sistema.</p>
+              </div>
+              <button class="btn dark" onclick="openAddSpecialistModal()">+ Agregar especialista</button>
+            </div>
+            <div class="settings-list card">
+              <div class="settings-list__row settings-list__head"><div>Nombre</div><div>Especialidad</div><div>Estado</div><div>Acción</div></div>
+              <div id="specialistsSettingsList"></div>
+            </div>
+          </div>
+
+          <div id="settings-diagnostics" class="settings-panel hidden">
+            <div class="settings-header card">
+              <div>
+                <div class="eyebrow">EVALUACIÓN</div>
+                <h3>Diagnósticos</h3>
+                <p class="muted">Estas opciones aparecerán como chips en “Nueva atención”.</p>
+              </div>
+              <button class="btn dark" onclick="openCatalogModal('diagnostic')">+ Agregar diagnóstico</button>
+            </div>
+            <div class="settings-list card">
+              <div class="settings-list__row settings-list__head"><div>Diagnóstico</div><div>Categoría</div><div>Estado</div><div>Acción</div></div>
+              <div id="diagnosticsSettingsList"></div>
+            </div>
+          </div>
+
+          <div id="settings-treatments" class="settings-panel hidden">
+            <div class="settings-header card">
+              <div>
+                <div class="eyebrow">SERVICIOS</div>
+                <h3>Tratamientos</h3>
+                <p class="muted">Catálogo de tratamientos con sus precios referenciales.</p>
+              </div>
+              <button class="btn dark" onclick="openCatalogModal('treatment')">+ Agregar tratamiento</button>
+            </div>
+            <div class="settings-list card">
+              <div class="settings-list__row settings-list__head"><div>Tratamiento</div><div>Precio</div><div>Estado</div><div>Acción</div></div>
+              <div id="treatmentsSettingsList"></div>
+            </div>
+          </div>
+
+          <div id="settings-products" class="settings-panel hidden">
+            <div class="settings-header card">
+              <div>
+                <div class="eyebrow">VENTA</div>
+                <h3>Productos</h3>
+                <p class="muted">Lista de productos disponibles para asociar a cada atención.</p>
+              </div>
+              <button class="btn dark" onclick="openCatalogModal('product')">+ Agregar producto</button>
+            </div>
+            <div class="settings-list card">
+              <div class="settings-list__row settings-list__head"><div>Producto</div><div>Precio</div><div>Estado</div><div>Acción</div></div>
+              <div id="productsSettingsList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="profile" class="admin-page hidden">
+      <div class="admin-top"><div><div class="muted" style="font-size:12px">Pacientes / <span id="profileBreadcrumbName">Andrea Ramírez</span></div><h2 style="margin-top:5px">Ficha del paciente</h2></div><div class="top-actions"><button class="btn light" type="button" onclick="openPatientEditModal()">Editar</button><button class="btn dark" onclick="showAdmin('appointment')">+ Nueva atención</button></div></div>
+      <div class="patient-header card">
+        <div class="avatar" id="profileAvatar">AR</div>
+        <div><h1 id="profileFullName" style="margin:0 0 8px">Andrea Ramírez</h1><div id="profileMeta" class="muted">DNI 74251863 &nbsp;·&nbsp; 987 654 321 &nbsp;·&nbsp; Edad: 30 años</div></div>
+        <div><div class="eyebrow">ÚLTIMA ATENCIÓN</div><strong id="profileLastAttention">10 sep 2026 · 10:20</strong><div class="eyebrow" style="margin-top:16px">PACIENTE</div><strong id="profilePatientCode">PAC-000128</strong></div>
+      </div>
+      <div class="tabs">
+        <button class="active" onclick="tab('summary',this)">Resumen</button>
+        <button onclick="tab('diagnosis',this)">Diagnósticos</button>
+        <button onclick="tab('recommendations',this)">Recomendaciones</button>
+        <button onclick="tab('history',this)">Historial</button>
+      </div>
+
+      <div id="summary" class="tab-pane active">
+        <div class="summary-grid">
+          <div class="panel card"><h3>Datos personales</h3><div class="info-grid">
+            <div><div class="k">NOMBRE</div><div class="v" id="profileName">Andrea</div></div><div><div class="k">APELLIDO</div><div class="v" id="profileLastName">Ramírez</div></div>
+            <div><div class="k">DNI</div><div class="v" id="profileDni">74251863</div></div><div><div class="k">CELULAR</div><div class="v" id="profileCell">987 654 321</div></div>
+            <div><div class="k">NACIMIENTO</div><div class="v" id="profileBirthDate">14 may 1996</div></div><div><div class="k">EDAD</div><div class="v" id="profileAge">30 años</div></div><div><div class="k">DISTRITO</div><div class="v" id="profileDistrict">Miraflores</div></div>
+            <div><div class="k">OCUPACIÓN</div><div class="v" id="profileOccupation">Diseñadora</div></div><div><div class="k">SEDE</div><div class="v" id="profileBranch">Sede 1</div></div>
+          </div></div>
+          <div class="panel card">
+            <h3>Información relevante</h3>
+            <div class="relevant-info-grid">
+              <div class="relevant-info-item">
+                <div class="k">¿INTERVENCIÓN PREVIA EN EL ROSTRO?</div>
+                <div class="v" id="profilePreviousProcedure">No indicado</div>
+              </div>
+              <div class="relevant-info-item" id="profilePreviousProcedureDetailsItem">
+                <div class="k">DETALLE DE LA INTERVENCIÓN</div>
+                <div class="v" id="profilePreviousProcedureDetails">No indicado</div>
+              </div>
+              <div class="relevant-info-item">
+                <div class="k">¿ES SU PRIMERA LIMPIEZA FACIAL?</div>
+                <div class="v" id="profileFirstFacialCleaning">No indicado</div>
+              </div>
+              <div class="relevant-info-item">
+                <div class="k">¿CÓMO NOS CONOCIÓ?</div>
+                <div class="v" id="profileReferral">Instagram</div>
+              </div>
+              <div class="relevant-info-item relevant-info-wide">
+                <div class="k">ALERGIA O ENFERMEDAD A TENER EN CUENTA</div>
+                <div class="v" id="profileAllergy">Alergia leve a fragancias con alto contenido de alcohol.</div>
+              </div>
+              <div class="relevant-info-item relevant-info-wide">
+                <div class="k">CONSENTIMIENTO</div>
+                <div class="v" id="profileConsent">He leído y acepto</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="evolution" id="profileEvolution">
+          <div class="panel card"><h3>Evolución reciente</h3><p class="muted">Diagnósticos registrados por atención</p>
+            <div class="timeline-item"><div class="eyebrow">10 SEP 2026</div><div class="chips" style="margin-top:10px"><span class="chip">Piel mixta</span><span class="chip">Manchas</span></div></div>
+            <div class="timeline-item"><div class="eyebrow">15 JUN 2026</div><div class="chips" style="margin-top:10px"><span class="chip">Piel acneica</span><span class="chip">Poros abiertos</span></div></div>
+            <div class="timeline-item"><div class="eyebrow">08 MAR 2026</div><div class="chips" style="margin-top:10px"><span class="chip">Piel sensible</span></div></div>
+          </div>
+          <div class="panel card"><h3>Últimas atenciones</h3>
+            <div class="timeline-item"><strong>Hydra Facial</strong><div class="muted">10 sep · S/128</div></div>
+            <div class="timeline-item"><strong>Limpieza profunda</strong><div class="muted">15 jun · S/95</div></div>
+            <div class="timeline-item"><strong>Peeling facial</strong><div class="muted">08 mar · S/110</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="diagnosis" class="tab-pane"><div id="profileDiagnosisContent">
+        <div class="panel card"><h3>Histórico de diagnósticos</h3><p class="muted">Cada diagnóstico permanece asociado a su atención.</p>
+          <div class="timeline-item"><strong>10 septiembre 2026</strong><div class="chips" style="margin-top:10px"><span class="chip">Piel mixta</span><span class="chip">Manchas</span></div></div>
+          <div class="timeline-item"><strong>15 junio 2026</strong><div class="chips" style="margin-top:10px"><span class="chip">Piel acneica</span><span class="chip">Poros abiertos</span></div></div>
+        </div></div>
+      </div>
+
+      <div id="recommendations" class="tab-pane"><div id="profileRecommendationsContent">
+        <div class="panel card"><h3>Recomendaciones</h3>
+          <div class="timeline-item"><div class="eyebrow">10 SEP 2026</div><strong>Rutina AM/PM</strong><p>Limpiador suave, sérum hidratante, protector solar FPS 50 y evitar exfoliantes por 48 horas.</p></div>
+          <div class="timeline-item"><div class="eyebrow">15 JUN 2026</div><strong>Cuidado de poros</strong><p>Niacinamida por las noches, hidratación y protector solar.</p></div>
+        </div></div>
+      </div>
+
+      <div id="history" class="tab-pane"><div id="profileHistoryContent">
+        <div class="panel card">
+          <div class="history-row head"><div>FECHA</div><div>TRATAMIENTO</div><div>ESPECIALISTA</div><div>MONTO</div><div>DETALLE</div></div>
+          <div class="history-row"><div>10 sep 2026</div><div><strong>Hydra Facial</strong></div><div>Brenda</div><div>S/128</div><button class="btn light" type="button" onclick="showAppointmentDetail(1001)">Ver</button></div>
+          <div class="history-row"><div>15 jun 2026</div><div><strong>Limpieza profunda</strong></div><div>Valeria</div><div>S/95</div><button class="btn light" type="button" onclick="showAppointmentDetail(1002)">Ver</button></div>
+          <div class="history-row"><div>08 mar 2026</div><div><strong>Peeling facial</strong></div><div>Brenda</div><div>S/110</div><button class="btn light" type="button" onclick="showAppointmentDetail(1003)">Ver</button></div>
+          <div class="mobile-history">
+            <div class="card" style="padding:18px"><div class="eyebrow">10 SEP 2026</div><h3>Hydra Facial</h3><div class="muted">Brenda · Total S/128</div><button class="btn light" type="button" style="margin-top:12px" onclick="showAppointmentDetail(1001)">Ver detalle</button></div>
+            <div class="card" style="padding:18px"><div class="eyebrow">15 JUN 2026</div><h3>Limpieza profunda</h3><div class="muted">Valeria · Total S/95</div><button class="btn light" type="button" style="margin-top:12px" onclick="showAppointmentDetail(1002)">Ver detalle</button></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div id="appointment" class="admin-page hidden">
+      <div class="admin-top"><div><div class="muted" style="font-size:12px">Andrea Ramírez / Nueva atención</div><h2 style="margin-top:5px">Nueva atención</h2></div><button class="btn light" onclick="showAdmin('profile')">Cancelar</button></div>
+      <div class="appointment-layout">
+        <div>
+          <div class="form-card card">
+            <h3>Información de atención</h3>
+            <div class="grid attention-info-grid">
+              <div>
+                <label>FECHA</label>
+                <input id="appointmentDate" type="date" value="2026-09-10"/>
+              </div>
+              <div>
+                <label>SEDE</label>
+                <select id="appointmentBranch">
+                  <option>Sede 1</option>
+                  <option>Sede 2</option>
+                </select>
+              </div>
+              <div>
+                <label>ESPECIALISTA</label>
+                <select id="appointmentSpecialist"></select>
+              </div>
+            </div>
+            <div class="small-note" id="appointmentContextNote">La sede queda registrada en esta atención y puede cambiarse sin modificar la sede habitual del paciente.</div>
+          </div>
+
+          <div class="form-card card"><h3>Evaluación</h3><label>DIAGNÓSTICO</label><div class="chips" id="diagnosisChips"></div>
+            <div style="margin-top:18px">
+              <label>OTROS</label>
+              <input id="appointmentOtherDiagnosis" placeholder="Especificar diagnóstico"/>
+            </div>
+            <div style="margin-top:16px"><label>RUTINA / INDICACIONES</label><textarea id="appointmentRoutine" rows="4" placeholder="Indicaciones o rutina recomendada"></textarea></div>
+            <div style="margin-top:16px"><label>OBSERVACIONES</label><textarea id="appointmentObservations" rows="3" placeholder="Observaciones de la atención"></textarea></div>
+          </div>
+
+          <div class="form-card card"><h3>Tratamientos</h3><div id="treatments"></div><button class="add-row" onclick="addTreatment()">+ Agregar tratamiento</button></div>
+
+          <div class="form-card card"><h3>Productos comprados</h3><div id="products"></div><button class="add-row" onclick="addProduct()">+ Agregar producto</button></div>
+
+          <div class="form-card card"><h3>Seguimiento</h3><div class="reco-type"><button id="dateMode" class="active" onclick="setNextMode('date')">Fecha específica</button><button id="approxMode" onclick="setNextMode('approx')">Aproximada</button></div><div id="nextDate"><label>PRÓXIMA CITA RECOMENDADA</label><input id="appointmentNextDate" type="date" value=""/></div><div id="nextApprox" class="hidden"><label>RECOMENDACIÓN APROXIMADA</label><input id="appointmentNextApprox" placeholder="Ej. En 4 semanas"/></div></div>
+        </div>
+
+        <aside class="sticky-total card">
+          <div class="eyebrow">RESUMEN DE COBRO</div>
+          <div style="margin-top:22px"><label>MEDIO DE PAGO</label><select id="appointmentPayment"><option value="">Seleccionar</option><option>Yape</option><option>Efectivo</option><option>Plin</option><option>Tarjeta</option><option>Transferencia</option></select></div>
+          <div style="margin-top:15px"><label>DESCUENTO</label><input id="discount" type="number" value="0" min="0" oninput="calcTotal()"/></div>
+          <div style="margin-top:22px"><div class="amount-line"><span>Tratamientos</span><strong id="sumTreat">S/ 79.00</strong></div><div class="amount-line"><span>Productos</span><strong id="sumProd">S/ 49.00</strong></div><div class="amount-line"><span>Descuento</span><strong id="sumDisc">- S/ 0.00</strong></div><div class="total-line"><span>Total</span><span id="grandTotal">S/ 128.00</span></div></div>
+          <button class="btn dark" onclick="saveAppointment()">Guardar atención</button><div class="small-note">El total se calcula automáticamente y se validará nuevamente al guardar.</div>
+        </aside>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="mobileMoreMenu" class="mobile-more-menu hidden" aria-hidden="true">
+  <div class="mobile-more-backdrop" onclick="closeMobileMore()"></div>
+  <div class="mobile-more-sheet" role="dialog" aria-modal="true" aria-label="Más opciones">
+    <div class="mobile-more-handle"></div>
+    <div class="mobile-more-head">
+      <div>
+        <div class="eyebrow">NAVEGACIÓN</div>
+        <h3>Más opciones</h3>
+      </div>
+      <button class="mobile-more-close" type="button" onclick="closeMobileMore()" aria-label="Cerrar">×</button>
+    </div>
+
+    <button class="mobile-more-option" type="button" onclick="showAdmin('agenda');closeMobileMore()">
+      <span class="mobile-more-icon">🗓</span>
+      <span><strong>Agenda del día</strong><small>Revisa las atenciones programadas</small></span>
+      <span class="mobile-more-arrow">›</span>
+    </button>
+
+    <button class="mobile-more-option" type="button" onclick="showAdmin('settings');closeMobileMore()">
+      <span class="mobile-more-icon">⚙</span>
+      <span><strong>Configuración</strong><small>Catálogos, especialistas y parámetros</small></span>
+      <span class="mobile-more-arrow">›</span>
+    </button>
+  </div>
+</div>
+</section>
+
+
+<div id="patientEditModal" class="prototype-modal hidden">
+  <div class="prototype-modal__backdrop" onclick="closePatientEditModal()"></div>
+  <div class="prototype-modal__card prototype-modal__card--wide">
+    <div class="prototype-modal__head">
+      <div>
+        <div class="eyebrow">PACIENTE</div>
+        <h3>Editar datos del paciente</h3>
+      </div>
+      <button class="prototype-modal__close" type="button" onclick="closePatientEditModal()">×</button>
+    </div>
+
+    <div class="grid g2 prototype-modal__form">
+      <div><label>NOMBRE</label><input id="editPatientFirstName"></div>
+      <div><label>APELLIDO</label><input id="editPatientLastName"></div>
+      <div><label>DNI</label><input id="editPatientDni" maxlength="8" inputmode="numeric"></div>
+      <div><label>CELULAR</label><input id="editPatientCell" maxlength="9" inputmode="numeric"></div>
+      <div><label>DISTRITO</label><input id="editPatientDistrict"></div>
+      <div><label>OCUPACIÓN</label><input id="editPatientOccupation"></div>
+      <div><label>SEDE</label><input id="editPatientBranch"></div>
+      <div><label>¿CÓMO NOS CONOCIÓ?</label><input id="editPatientReferral"></div>
+      <div class="prototype-modal__full"><label>ALERGIA O ENFERMEDAD</label><textarea id="editPatientAllergy" rows="3"></textarea></div>
+    </div>
+
+    <div class="prototype-modal__actions">
+      <button class="btn light" type="button" onclick="closePatientEditModal()">Cancelar</button>
+      <button class="btn dark" type="button" onclick="savePatientEdit()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div id="appointmentDetailModal" class="prototype-modal hidden">
+  <div class="prototype-modal__backdrop" onclick="closeAppointmentDetailModal()"></div>
+  <div class="prototype-modal__card">
+    <div class="prototype-modal__head">
+      <div>
+        <div class="eyebrow">ATENCIÓN</div>
+        <h3>Detalle de la atención</h3>
+      </div>
+      <button class="prototype-modal__close" type="button" onclick="closeAppointmentDetailModal()">×</button>
+    </div>
+    <div id="appointmentDetailContent"></div>
+    <div class="prototype-modal__actions">
+      <button class="btn dark" type="button" onclick="closeAppointmentDetailModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="allPatientsModal" class="prototype-modal hidden">
+  <div class="prototype-modal__backdrop" onclick="closeAllPatientsModal()"></div>
+  <div class="prototype-modal__card prototype-modal__card--wide">
+    <div class="prototype-modal__head">
+      <div>
+        <div class="eyebrow">PACIENTES</div>
+        <h3>Todos los pacientes</h3>
+      </div>
+      <button class="prototype-modal__close" type="button" onclick="closeAllPatientsModal()">×</button>
+    </div>
+    <div id="allPatientsList" class="prototype-patient-list"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+
+</div>
+<!-- Lógica de interfaz y conexión con Apps Script. -->
+<script src="luna_estetica.js" defer></script>
+
+<div id="staffSelector" class="staff-modal hidden">
+  <div class="staff-modal__backdrop" onclick="closeStaffSelector()"></div>
+  <div class="staff-modal__card">
+    <h2 class="staff-modal__title">ESPECIALISTA</h2>
+    <p class="staff-modal__desc">Selecciona la especialista que realizará la atención.</p>
+
+    <div id="staffOptions" class="staff-options"></div>
+
+    <button class="staff-back" onclick="closeStaffSelector()">Volver</button>
+  </div>
+</div>
+
+
+<div id="addSpecialistModal" class="catalog-modal hidden">
+  <div class="catalog-modal__backdrop" onclick="closeAddSpecialistModal()"></div>
+  <div class="catalog-modal__card">
+    <div class="catalog-modal__header">
+      <div>
+        <div class="eyebrow">PERSONAL</div>
+        <h3>Nueva especialista</h3>
+      </div>
+      <button class="catalog-modal__close" onclick="closeAddSpecialistModal()" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="catalog-modal__body">
+      <div>
+        <label>NOMBRE COMPLETO</label>
+        <input id="newSpecialistName" type="text" placeholder="Ej. Myriam López">
+      </div>
+      <div>
+        <label>ESPECIALIDAD</label>
+        <input id="newSpecialistSpecialty" type="text" placeholder="Ej. Facial">
+      </div>
+      <div>
+        <label>ESTADO</label>
+        <select id="newSpecialistStatus">
+          <option value="active">Activa</option>
+          <option value="inactive">Inactiva</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="catalog-modal__actions">
+      <button class="btn light" onclick="closeAddSpecialistModal()">Cancelar</button>
+      <button class="btn dark" onclick="saveSpecialist()">Guardar especialista</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="catalogItemModal" class="catalog-modal hidden">
+  <div class="catalog-modal__backdrop" onclick="closeCatalogModal()"></div>
+  <div class="catalog-modal__card">
+    <div class="catalog-modal__header">
+      <div>
+        <div class="eyebrow" id="catalogModalEyebrow">CATÁLOGO</div>
+        <h3 id="catalogModalTitle">Nuevo registro</h3>
+      </div>
+      <button class="catalog-modal__close" onclick="closeCatalogModal()" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="catalog-modal__body">
+      <div>
+        <label id="catalogNameLabel">NOMBRE</label>
+        <input id="catalogName" type="text" placeholder="">
+      </div>
+      <div>
+        <label id="catalogField2Label">DETALLE</label>
+        <input id="catalogField2" type="text" placeholder="">
+      </div>
+      <div>
+        <label>ESTADO</label>
+        <select id="catalogStatus">
+          <option value="active">Activo</option>
+          <option value="inactive">Inactivo</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="catalog-modal__actions">
+      <button class="btn light" onclick="closeCatalogModal()">Cancelar</button>
+      <button class="btn dark" onclick="saveCatalogItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="generalItemModal" class="catalog-modal hidden">
+  <div class="catalog-modal__backdrop" onclick="closeSimpleListModal()"></div>
+  <div class="catalog-modal__card">
+    <div class="catalog-modal__header">
+      <div>
+        <div id="generalModalEyebrow" class="eyebrow">GENERAL</div>
+        <h3 id="generalModalTitle">Nuevo registro</h3>
+      </div>
+      <button class="catalog-modal__close" onclick="closeSimpleListModal()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="catalog-modal__body">
+      <div>
+        <label id="generalModalLabel">NOMBRE</label>
+        <input id="generalModalInput" type="text" placeholder="">
+      </div>
+    </div>
+    <div class="catalog-modal__actions">
+      <button class="btn light" onclick="closeSimpleListModal()">Cancelar</button>
+      <button class="btn dark" onclick="saveSimpleListItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="consentModal" class="catalog-modal hidden">
+  <div class="catalog-modal__backdrop" onclick="closeConsentModal()"></div>
+  <div class="catalog-modal__card">
+    <div class="catalog-modal__header">
+      <div>
+        <div class="eyebrow">GENERAL</div>
+        <h3>Editar consentimiento</h3>
+      </div>
+      <button class="catalog-modal__close" onclick="closeConsentModal()" aria-label="Cerrar">×</button>
+    </div>
+    <div class="catalog-modal__body">
+      <div>
+        <label>VERSIÓN</label>
+        <input id="consentVersionInput" type="text" placeholder="Ej. Consentimiento v1.1">
+      </div>
+      <div>
+        <label>TEXTO DE CONSENTIMIENTO</label>
+        <textarea id="consentTextInput" rows="6" placeholder="Escribe el texto de consentimiento"></textarea>
+      </div>
+    </div>
+    <div class="catalog-modal__actions">
+      <button class="btn light" onclick="closeConsentModal()">Cancelar</button>
+      <button class="btn dark" onclick="saveConsent()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
