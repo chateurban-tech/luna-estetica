@@ -245,10 +245,7 @@ function showPatient(branch=''){
 
  document.querySelectorAll('.branch-choice').forEach(btn=>{
    const txt=btn.textContent.trim();
-   btn.classList.toggle('selected',
-     (branch==='Sede Villasol' && txt==='Sede Villasol') ||
-     (branch==='Sede 2' && txt==='Sede 2')
-   );
+   btn.classList.toggle('selected', txt === branch);
  });
 
  resetPatientForm();
@@ -471,8 +468,16 @@ function patientPrev(){if(pStep>1){pStep--;updatePatient()}}
 
 async function registerPatientFromForm(){
   try{
-    if(selectedPatientBranch !== 'Sede Villasol'){
-      throw new Error('El registro conectado a la base de datos está habilitado por ahora solo para Sede Villasol.');
+    if(!selectedPatientBranch){
+      throw new Error('Selecciona una sede para continuar.');
+    }
+
+    const sedeActiva = branchesCatalog.find(
+      s => s.active && s.name === selectedPatientBranch
+    );
+
+    if(!sedeActiva){
+      throw new Error('La sede seleccionada no está disponible.');
     }
 
     const nombre = document.getElementById('patientName')?.value.trim() || '';
@@ -496,6 +501,7 @@ async function registerPatientFromForm(){
     }
 
     const pacienteApi = {
+      sede: selectedPatientBranch,
       nombre,
       apellido,
       dni,
@@ -1205,7 +1211,101 @@ let productsCatalog = [
   { id: 2, name: 'Protector solar FPS 50', price: 65, active: true }
 ];
 
-let branchesCatalog = ['Sede 1', 'Sede 2'];
+let branchesCatalog = [];
+let branchesLoaded = false;
+let branchesLoadingPromise = null;
+
+async function cargarSedesDesdeApi({ force = false } = {}) {
+  if (branchesLoaded && !force) {
+    return branchesCatalog;
+  }
+
+  if (branchesLoadingPromise && !force) {
+    return branchesLoadingPromise;
+  }
+
+  branchesLoadingPromise = (async () => {
+    const resultado = await enviarApi('listarSedes');
+
+    const registros = Array.isArray(resultado?.sedes)
+      ? resultado.sedes
+      : [];
+
+    branchesCatalog = registros.map(item => ({
+      id: String(item.idSede || '').trim(),
+      name: String(item.nombre || '').trim(),
+      active: String(item.estado || '').trim().toLowerCase() === 'activo'
+    }));
+
+    branchesLoaded = true;
+
+    renderLandingBranches();
+    renderBranchSelectors();
+    renderGeneralSettings();
+
+    return branchesCatalog;
+  })();
+
+  try {
+    return await branchesLoadingPromise;
+  } finally {
+    branchesLoadingPromise = null;
+  }
+}
+
+function renderLandingBranches(){
+  const currentButtons = [...document.querySelectorAll('.branch-choice')];
+
+  if(!currentButtons.length) return;
+
+  const container = currentButtons[0].parentElement;
+  if(!container) return;
+
+  const activeBranches = branchesCatalog.filter(s => s.active);
+
+  if(!activeBranches.length){
+    container.innerHTML =
+      '<div class="muted">No hay sedes disponibles.</div>';
+    return;
+  }
+
+  container.innerHTML = activeBranches.map(s => `
+    <button
+      class="branch-choice"
+      type="button"
+      onclick="showPatient('${String(s.name).replace(/'/g, "\'")}')">
+      ${esc(s.name)}
+    </button>
+  `).join('');
+}
+
+function renderBranchSelectors(){
+  const activeBranches = branchesCatalog.filter(s => s.active);
+
+  const appointment = document.getElementById('appointmentBranch');
+  if(appointment){
+    const previous = appointment.value;
+    appointment.innerHTML = activeBranches
+      .map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`)
+      .join('');
+
+    if(activeBranches.some(s => s.name === previous)){
+      appointment.value = previous;
+    }
+  }
+
+  const patientEdit = document.getElementById('editPatientBranch');
+  if(patientEdit && patientEdit.tagName === 'SELECT'){
+    const previous = patientEdit.value;
+    patientEdit.innerHTML = activeBranches
+      .map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`)
+      .join('');
+
+    if(activeBranches.some(s => s.name === previous)){
+      patientEdit.value = previous;
+    }
+  }
+}
 let paymentMethodsCatalog = ['Efectivo', 'Yape', 'Plin', 'Tarjeta'];
 let appointmentStatusesCatalog = ['En agenda', 'Confirmada', 'Pendiente', 'Cancelada'];
 let consentVersion = 'Consentimiento v1.0';
@@ -1407,12 +1507,22 @@ function renderGeneralSettings(){
   const consentBox = document.getElementById('consentVersionBox');
 
   if(branches){
-    branches.innerHTML = branchesCatalog.map((item, i) => `
-      <div class="settings-mini-row">
-        <span>${item}</span>
-        <button class="btn btn-inline-edit" type="button" onclick="openSimpleListModal('branch', ${i})">Editar</button>
-      </div>
-    `).join('');
+    branches.innerHTML = branchesCatalog.length
+      ? branchesCatalog.map(item => `
+          <div class="settings-mini-row">
+            <span>
+              ${esc(item.name)}
+              <small class="muted"> · ${item.active ? 'Activa' : 'Inactiva'}</small>
+            </span>
+            <button
+              class="btn btn-inline-edit"
+              type="button"
+              onclick="openSimpleListModal('branch', '${String(item.id).replace(/'/g, "\'")}')">
+              Editar
+            </button>
+          </div>
+        `).join('')
+      : '<div class="empty">No hay sedes registradas.</div>';
   }
 
   if(payments){
@@ -1445,17 +1555,47 @@ function showGeneralSaved(){
 function openSimpleListModal(type, index = null){
   generalEditType = type;
   generalEditIndex = index;
+
+  const branchItem =
+    type === 'branch' && index !== null
+      ? branchesCatalog.find(s => String(s.id) === String(index))
+      : null;
+
   const cfg = {
-    branch: { title: index === null ? 'Nueva sede' : 'Editar sede', label: 'SEDE', placeholder: 'Ej. Sede 3', source: branchesCatalog },
-    payment: { title: index === null ? 'Nuevo medio de pago' : 'Editar medio de pago', label: 'MEDIO DE PAGO', placeholder: 'Ej. Transferencia', source: paymentMethodsCatalog },
-    status: { title: index === null ? 'Nuevo estado de cita' : 'Editar estado de cita', label: 'ESTADO', placeholder: 'Ej. Reprogramada', source: appointmentStatusesCatalog }
+    branch: {
+      title: index === null ? 'Nueva sede' : 'Editar sede',
+      label: 'SEDE',
+      placeholder: 'Ej. Sede 3'
+    },
+    payment: {
+      title: index === null ? 'Nuevo medio de pago' : 'Editar medio de pago',
+      label: 'MEDIO DE PAGO',
+      placeholder: 'Ej. Transferencia',
+      source: paymentMethodsCatalog
+    },
+    status: {
+      title: index === null ? 'Nuevo estado de cita' : 'Editar estado de cita',
+      label: 'ESTADO',
+      placeholder: 'Ej. Reprogramada',
+      source: appointmentStatusesCatalog
+    }
   }[type];
 
   document.getElementById('generalModalTitle').textContent = cfg.title;
   document.getElementById('generalModalLabel').textContent = cfg.label;
+
   const input = document.getElementById('generalModalInput');
   input.placeholder = cfg.placeholder;
-  input.value = index === null ? '' : (cfg.source[index] || '');
+
+  if(type === 'branch'){
+    input.value = branchItem?.name || '';
+  }else{
+    input.value =
+      index === null
+        ? ''
+        : (cfg.source[index] || '');
+  }
+
   document.getElementById('generalItemModal').classList.remove('hidden');
   setTimeout(() => input.focus(), 0);
 }
@@ -1464,20 +1604,75 @@ function closeSimpleListModal(){
   document.getElementById('generalItemModal')?.classList.add('hidden');
 }
 
-function saveSimpleListItem(){
+async function saveSimpleListItem(){
   const input = document.getElementById('generalModalInput');
   const value = String(input?.value || '').trim();
+
   if(!value){
     alert('Completa el dato.');
     input?.focus();
     return;
   }
 
+  if(generalEditType === 'branch'){
+    const existing =
+      generalEditIndex !== null && generalEditIndex !== undefined
+        ? branchesCatalog.find(
+            s => String(s.id) === String(generalEditIndex)
+          )
+        : null;
+
+    const sedeApi = {
+      idSede: existing?.id || '',
+      nombre: value,
+      // El modal actual no incluye selector de estado.
+      // En edición se conserva el estado existente;
+      // en alta se crea como Activo.
+      estado: existing
+        ? (existing.active ? 'Activo' : 'Inactivo')
+        : 'Activo'
+    };
+
+    try{
+      await enviarApi(
+        'guardarSede',
+        { sede: sedeApi }
+      );
+
+      await cargarSedesDesdeApi({
+        force: true
+      });
+
+      generalEditIndex = null;
+      closeSimpleListModal();
+
+      toast(
+        sedeApi.idSede
+          ? 'Sede actualizada correctamente.'
+          : 'Sede registrada correctamente.'
+      );
+
+    }catch(error){
+      console.error(
+        'Error al guardar sede:',
+        error
+      );
+
+      toast(
+        error.message ||
+        'No se pudo guardar la sede.'
+      );
+    }
+
+    return;
+  }
+
   const source = {
-    branch: branchesCatalog,
     payment: paymentMethodsCatalog,
     status: appointmentStatusesCatalog
   }[generalEditType];
+
+  if(!source) return;
 
   if(generalEditIndex === null || generalEditIndex === undefined){
     source.push(value);
@@ -1783,6 +1978,13 @@ cargarEspecialistasDesdeApi().catch(error => {
 cargarPacientesDesdeApi().catch(error => {
   console.warn(
     'No se pudieron precargar los pacientes:',
+    error
+  );
+});
+
+cargarSedesDesdeApi().catch(error => {
+  console.warn(
+    'No se pudieron precargar las sedes:',
     error
   );
 });
