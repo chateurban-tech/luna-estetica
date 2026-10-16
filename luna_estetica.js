@@ -1306,7 +1306,92 @@ function renderBranchSelectors(){
     }
   }
 }
-let paymentMethodsCatalog = ['Efectivo', 'Yape', 'Plin', 'Tarjeta'];
+let paymentMethodsCatalog = [];
+let paymentMethodsLoaded = false;
+let paymentMethodsLoadingPromise = null;
+
+async function cargarMediosPagoDesdeApi({ force = false } = {}) {
+  if (paymentMethodsLoaded && !force) {
+    return paymentMethodsCatalog;
+  }
+
+  if (paymentMethodsLoadingPromise && !force) {
+    return paymentMethodsLoadingPromise;
+  }
+
+  paymentMethodsLoadingPromise = (async () => {
+    const resultado = await enviarApi('listarMediosPago');
+
+    const registros = Array.isArray(resultado?.mediosPago)
+      ? resultado.mediosPago
+      : [];
+
+    paymentMethodsCatalog = registros.map(item => ({
+      id: String(item.idMedioPago || '').trim(),
+      name: String(item.nombre || '').trim(),
+      active: String(item.estado || '').trim().toLowerCase() === 'activo'
+    }));
+
+    paymentMethodsLoaded = true;
+
+    renderPaymentMethodsSettings();
+    renderAppointmentPaymentMethods();
+
+    return paymentMethodsCatalog;
+  })();
+
+  try {
+    return await paymentMethodsLoadingPromise;
+  } finally {
+    paymentMethodsLoadingPromise = null;
+  }
+}
+
+function renderPaymentMethodsSettings(){
+  const payments = document.getElementById('paymentMethodsList');
+  if(!payments) return;
+
+  if(!paymentMethodsCatalog.length){
+    payments.innerHTML =
+      '<div class="empty">No hay medios de pago registrados.</div>';
+    return;
+  }
+
+  payments.innerHTML = paymentMethodsCatalog.map(item => `
+    <div class="settings-mini-row">
+      <span>
+        ${esc(item.name)}
+        <small class="muted"> · ${item.active ? 'Activo' : 'Inactivo'}</small>
+      </span>
+      <button
+        class="btn btn-inline-edit"
+        type="button"
+        onclick="openSimpleListModal('payment', '${String(item.id).replace(/'/g, "\'")}')">
+        Editar
+      </button>
+    </div>
+  `).join('');
+}
+
+function renderAppointmentPaymentMethods(){
+  const select = document.getElementById('appointmentPayment');
+  if(!select) return;
+
+  const activeMethods = paymentMethodsCatalog.filter(item => item.active);
+  const previous = select.value;
+
+  select.innerHTML =
+    '<option value="">Seleccionar</option>' +
+    activeMethods
+      .map(item =>
+        `<option value="${esc(item.name)}">${esc(item.name)}</option>`
+      )
+      .join('');
+
+  if(activeMethods.some(item => item.name === previous)){
+    select.value = previous;
+  }
+}
 let appointmentStatusesCatalog = ['En agenda', 'Confirmada', 'Pendiente', 'Cancelada'];
 let consentVersion = 'Consentimiento v1.0';
 let consentText = 'He sido informado(a) sobre el procedimiento, sus posibles reacciones y cuidados posteriores. Acepto realizarme el tratamiento de forma voluntaria.';
@@ -1526,12 +1611,7 @@ function renderGeneralSettings(){
   }
 
   if(payments){
-    payments.innerHTML = paymentMethodsCatalog.map((item, i) => `
-      <div class="settings-mini-row">
-        <span>${item}</span>
-        <button class="btn btn-inline-edit" type="button" onclick="openSimpleListModal('payment', ${i})">Editar</button>
-      </div>
-    `).join('');
+    renderPaymentMethodsSettings();
   }
 
   if(statuses){
@@ -1561,6 +1641,11 @@ function openSimpleListModal(type, index = null){
       ? branchesCatalog.find(s => String(s.id) === String(index))
       : null;
 
+  const paymentItem =
+    type === 'payment' && index !== null
+      ? paymentMethodsCatalog.find(p => String(p.id) === String(index))
+      : null;
+
   const cfg = {
     branch: {
       title: index === null ? 'Nueva sede' : 'Editar sede',
@@ -1570,8 +1655,7 @@ function openSimpleListModal(type, index = null){
     payment: {
       title: index === null ? 'Nuevo medio de pago' : 'Editar medio de pago',
       label: 'MEDIO DE PAGO',
-      placeholder: 'Ej. Transferencia',
-      source: paymentMethodsCatalog
+      placeholder: 'Ej. Transferencia'
     },
     status: {
       title: index === null ? 'Nuevo estado de cita' : 'Editar estado de cita',
@@ -1589,6 +1673,8 @@ function openSimpleListModal(type, index = null){
 
   if(type === 'branch'){
     input.value = branchItem?.name || '';
+  }else if(type === 'payment'){
+    input.value = paymentItem?.name || '';
   }else{
     input.value =
       index === null
@@ -1625,23 +1711,14 @@ async function saveSimpleListItem(){
     const sedeApi = {
       idSede: existing?.id || '',
       nombre: value,
-      // El modal actual no incluye selector de estado.
-      // En edición se conserva el estado existente;
-      // en alta se crea como Activo.
       estado: existing
         ? (existing.active ? 'Activo' : 'Inactivo')
         : 'Activo'
     };
 
     try{
-      await enviarApi(
-        'guardarSede',
-        { sede: sedeApi }
-      );
-
-      await cargarSedesDesdeApi({
-        force: true
-      });
+      await enviarApi('guardarSede', { sede: sedeApi });
+      await cargarSedesDesdeApi({ force: true });
 
       generalEditIndex = null;
       closeSimpleListModal();
@@ -1651,16 +1728,57 @@ async function saveSimpleListItem(){
           ? 'Sede actualizada correctamente.'
           : 'Sede registrada correctamente.'
       );
+    }catch(error){
+      console.error('Error al guardar sede:', error);
+      toast(error.message || 'No se pudo guardar la sede.');
+    }
 
+    return;
+  }
+
+  if(generalEditType === 'payment'){
+    const existing =
+      generalEditIndex !== null && generalEditIndex !== undefined
+        ? paymentMethodsCatalog.find(
+            p => String(p.id) === String(generalEditIndex)
+          )
+        : null;
+
+    const medioPagoApi = {
+      idMedioPago: existing?.id || '',
+      nombre: value,
+      estado: existing
+        ? (existing.active ? 'Activo' : 'Inactivo')
+        : 'Activo'
+    };
+
+    try{
+      await enviarApi(
+        'guardarMedioPago',
+        { medioPago: medioPagoApi }
+      );
+
+      await cargarMediosPagoDesdeApi({
+        force: true
+      });
+
+      generalEditIndex = null;
+      closeSimpleListModal();
+
+      toast(
+        medioPagoApi.idMedioPago
+          ? 'Medio de pago actualizado correctamente.'
+          : 'Medio de pago registrado correctamente.'
+      );
     }catch(error){
       console.error(
-        'Error al guardar sede:',
+        'Error al guardar medio de pago:',
         error
       );
 
       toast(
         error.message ||
-        'No se pudo guardar la sede.'
+        'No se pudo guardar el medio de pago.'
       );
     }
 
@@ -1668,7 +1786,6 @@ async function saveSimpleListItem(){
   }
 
   const source = {
-    payment: paymentMethodsCatalog,
     status: appointmentStatusesCatalog
   }[generalEditType];
 
@@ -1985,6 +2102,13 @@ cargarPacientesDesdeApi().catch(error => {
 cargarSedesDesdeApi().catch(error => {
   console.warn(
     'No se pudieron precargar las sedes:',
+    error
+  );
+});
+
+cargarMediosPagoDesdeApi().catch(error => {
+  console.warn(
+    'No se pudieron precargar los medios de pago:',
     error
   );
 });
