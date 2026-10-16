@@ -57,7 +57,6 @@ function goLanding(){
 function hideAll(){['landing','patient','admin'].forEach(id=>document.getElementById(id).classList.add('hidden'))}
 const APP_CONFIG = Object.freeze({
   // El frontend se comunica únicamente con el proxy de Cloudflare.
-  // La URL /exec de Apps Script se configura solo en APPS_SCRIPT_URL dentro del Worker.
   API_URL: 'https://luna-estetica-api.chateurban.workers.dev',
   API_TIMEOUT_MS: 15000
 });
@@ -93,11 +92,10 @@ async function enviarApi(accion, datos = {}) {
     }
 
     if (!respuesta.ok || !resultado?.ok) {
-      const mensaje =
+      throw new Error(
         resultado?.mensaje ||
-        `La operación no pudo completarse (HTTP ${respuesta.status}).`;
-
-      throw new Error(mensaje);
+        'La operación no pudo completarse.'
+      );
     }
 
     return resultado;
@@ -1051,14 +1049,55 @@ function renderUpcomingBirthdays(){
 
 let selectedStaff = null;
 
-/* Catálogo central de especialistas.
-   En la versión final este listado vendrá de Configuración/Google Sheets.
-   Cualquier especialista activa agregada al catálogo aparecerá automáticamente
-   tanto en este selector como en Nueva atención. */
-let specialists = [
-  { id: 1, name: 'Brenda Ramírez', specialty: 'Facial', active: true },
-  { id: 2, name: 'Valeria Torres', specialty: 'Limpieza facial', active: true }
-];
+/*
+  Especialistas:
+  La fuente de verdad es Google Sheets.
+  El frontend recibe los registros a través de:
+  GitHub Pages → Cloudflare Worker → Apps Script → Google Sheets.
+*/
+let specialists = [];
+let specialistsLoaded = false;
+let specialistsLoadingPromise = null;
+
+async function cargarEspecialistasDesdeApi({ force = false } = {}) {
+  if (specialistsLoaded && !force) {
+    return specialists;
+  }
+
+  if (specialistsLoadingPromise && !force) {
+    return specialistsLoadingPromise;
+  }
+
+  specialistsLoadingPromise = (async () => {
+    const resultado = await enviarApi('listarEspecialistas');
+
+    const registros = Array.isArray(resultado?.especialistas)
+      ? resultado.especialistas
+      : [];
+
+    specialists = registros.map(item => ({
+      id: String(item.idEspecialista || '').trim(),
+      name: String(item.nombre || '').trim(),
+      specialty: String(item.especialidad || '').trim(),
+      active: String(item.estado || '').trim().toLowerCase() === 'activo'
+    }));
+
+    specialistsLoaded = true;
+
+    renderStaffOptions();
+    renderAppointmentSpecialists();
+    renderSpecialistsSettings();
+
+    return specialists;
+  })();
+
+  try {
+    return await specialistsLoadingPromise;
+  } finally {
+    specialistsLoadingPromise = null;
+  }
+}
+
 
 let diagnostics = [
   { id: 1, name: 'Piel seca', category: 'Tipo de piel', active: true },
@@ -1093,15 +1132,53 @@ let generalEditIndex = null;
 function renderStaffOptions(){
   const box = document.getElementById('staffOptions');
   if(!box) return;
+
   const activeSpecialists = specialists.filter(s => s.active);
+
+  if(!activeSpecialists.length){
+    box.innerHTML = `
+      <div class="muted" style="padding:12px 0">
+        No hay especialistas activos disponibles.
+      </div>`;
+    return;
+  }
+
   box.innerHTML = activeSpecialists.map(s =>
-    `<button type="button" onclick="selectStaff('${s.name.replace(/'/g, "\'")}')">${s.name}</button>`
+    `<button type="button" onclick="selectStaff('${String(s.name).replace(/'/g, "\'")}')">${esc(s.name)}</button>`
   ).join('');
 }
 
-function showStaffSelector(){
-  renderStaffOptions();
-  document.getElementById('staffSelector')?.classList.remove('hidden');
+async function showStaffSelector(){
+  const modal = document.getElementById('staffSelector');
+  const box = document.getElementById('staffOptions');
+
+  modal?.classList.remove('hidden');
+
+  if(box){
+    box.innerHTML = `
+      <div class="muted" style="padding:12px 0">
+        Cargando especialistas...
+      </div>`;
+  }
+
+  try{
+    await cargarEspecialistasDesdeApi();
+    renderStaffOptions();
+  }catch(error){
+    console.error('Error al cargar especialistas:', error);
+
+    if(box){
+      box.innerHTML = `
+        <div class="muted" style="padding:12px 0">
+          No se pudieron cargar los especialistas.
+        </div>`;
+    }
+
+    toast(
+      error.message ||
+      'No se pudieron cargar los especialistas.'
+    );
+  }
 }
 
 function closeStaffSelector(){
@@ -1117,21 +1194,45 @@ function selectStaff(name){
 function renderAppointmentSpecialists(){
   const select = document.getElementById('appointmentSpecialist');
   if(!select) return;
-  select.innerHTML = specialists
-    .filter(s => s.active)
-    .map(s => `<option value="${s.id}">${s.name}</option>`)
+
+  const activeSpecialists = specialists.filter(s => s.active);
+
+  if(!activeSpecialists.length){
+    select.innerHTML =
+      '<option value="">Sin especialistas disponibles</option>';
+    return;
+  }
+
+  select.innerHTML = activeSpecialists
+    .map(s =>
+      `<option value="${esc(s.id)}">${esc(s.name)}</option>`
+    )
     .join('');
 }
 
 function renderSpecialistsSettings(){
   const list = document.getElementById('specialistsSettingsList');
   if(!list) return;
+
+  if(!specialists.length){
+    list.innerHTML =
+      '<div class="empty">No hay especialistas registrados.</div>';
+    return;
+  }
+
   list.innerHTML = specialists.map(s => `
     <div class="settings-list__row">
-      <div>${s.name}</div>
-      <div>${s.specialty || '—'}</div>
+      <div>${esc(s.name)}</div>
+      <div>${esc(s.specialty || '—')}</div>
       <div><span class="status-pill">${s.active ? 'Activa' : 'Inactiva'}</span></div>
-      <div><button class="btn light" type="button" onclick="editSpecialist(${s.id})">Editar</button></div>
+      <div>
+        <button
+          class="btn light"
+          type="button"
+          onclick="editSpecialist('${String(s.id).replace(/'/g, "\'")}')">
+          Editar
+        </button>
+      </div>
     </div>
   `).join('');
 }
@@ -1464,7 +1565,7 @@ function openAddSpecialistModal(id = null){
   const title = modal.querySelector('h3');
 
   if(id){
-    const item = specialists.find(s => s.id === id);
+    const item = specialists.find(s => String(s.id) === String(id));
     title.textContent = 'Editar especialista';
     nameInput.value = item?.name || '';
     specInput.value = item?.specialty || '';
@@ -1496,15 +1597,23 @@ function saveSpecialist(){
   }
 
   if(specialistEditId){
-    const item = specialists.find(s => s.id === specialistEditId);
+    const item = specialists.find(
+      s => String(s.id) === String(specialistEditId)
+    );
+
     if(item){
       item.name = name;
       item.specialty = specialty || 'Sin especialidad';
       item.active = active;
     }
   }else{
+    /*
+      Alta local temporal.
+      La persistencia de altas/ediciones en Google Sheets
+      se implementará en la Etapa 3 (Configuración).
+    */
     specialists.push({
-      id: specialists.length ? Math.max(...specialists.map(s => s.id)) + 1 : 1,
+      id: `LOCAL-${Date.now()}`,
       name,
       specialty: specialty || 'Sin especialidad',
       active
@@ -1522,4 +1631,25 @@ function editSpecialist(id){
   openAddSpecialistModal(id);
 }
 
-renderTreatments();renderProducts();calcTotal();updatePatient();renderUpcomingBirthdays();renderAppointmentSpecialists();renderSpecialistsSettings();renderDiagnosticsSettings();renderTreatmentsSettings();renderProductsSettings();renderAttentionDiagnostics();renderAttentionCatalogs();renderGeneralSettings();showAdmin('home');goLanding();
+renderTreatments();
+renderProducts();
+calcTotal();
+updatePatient();
+renderUpcomingBirthdays();
+renderAppointmentSpecialists();
+renderSpecialistsSettings();
+renderDiagnosticsSettings();
+renderTreatmentsSettings();
+renderProductsSettings();
+renderAttentionDiagnostics();
+renderAttentionCatalogs();
+renderGeneralSettings();
+showAdmin('home');
+goLanding();
+
+cargarEspecialistasDesdeApi().catch(error => {
+  console.warn(
+    'No se pudieron precargar los especialistas:',
+    error
+  );
+});
