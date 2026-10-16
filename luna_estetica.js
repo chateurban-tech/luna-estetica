@@ -1632,6 +1632,51 @@ function showGeneralSaved(){
   alert('Configuración general guardada correctamente.');
 }
 
+
+function asegurarGeneralStatusField(){
+  const modal = document.getElementById('generalItemModal');
+  const input = document.getElementById('generalModalInput');
+
+  if(!modal || !input) return null;
+
+  let wrap = document.getElementById('generalStatusWrap');
+  let select = document.getElementById('generalStatus');
+
+  if(!wrap){
+    wrap = document.createElement('div');
+    wrap.id = 'generalStatusWrap';
+    wrap.style.marginTop = '14px';
+
+    const label = document.createElement('label');
+    label.textContent = 'ESTADO';
+    label.style.display = 'block';
+    label.style.marginBottom = '8px';
+
+    select = document.createElement('select');
+    select.id = 'generalStatus';
+    select.innerHTML = `
+      <option value="active">Activo</option>
+      <option value="inactive">Inactivo</option>
+    `;
+    select.style.width = '100%';
+
+    wrap.appendChild(label);
+    wrap.appendChild(select);
+
+    const parent = input.parentElement;
+    if(parent){
+      parent.insertAdjacentElement('afterend', wrap);
+    }else{
+      modal.appendChild(wrap);
+    }
+  }
+
+  return {
+    wrap,
+    select: document.getElementById('generalStatus')
+  };
+}
+
 function openSimpleListModal(type, index = null){
   generalEditType = type;
   generalEditIndex = index;
@@ -1682,6 +1727,25 @@ function openSimpleListModal(type, index = null){
         : (cfg.source[index] || '');
   }
 
+  const statusField = asegurarGeneralStatusField();
+
+  if(statusField){
+    const usesStatus = type === 'branch' || type === 'payment';
+    statusField.wrap.style.display = usesStatus ? '' : 'none';
+
+    if(usesStatus){
+      const currentActive =
+        type === 'branch'
+          ? (branchItem?.active ?? true)
+          : (paymentItem?.active ?? true);
+
+      statusField.select.value =
+        currentActive
+          ? 'active'
+          : 'inactive';
+    }
+  }
+
   document.getElementById('generalItemModal').classList.remove('hidden');
   setTimeout(() => input.focus(), 0);
 }
@@ -1708,12 +1772,15 @@ async function saveSimpleListItem(){
           )
         : null;
 
+    const estadoSeleccionado =
+      document.getElementById('generalStatus')?.value === 'inactive'
+        ? 'Inactivo'
+        : 'Activo';
+
     const sedeApi = {
       idSede: existing?.id || '',
       nombre: value,
-      estado: existing
-        ? (existing.active ? 'Activo' : 'Inactivo')
-        : 'Activo'
+      estado: estadoSeleccionado
     };
 
     try{
@@ -1744,12 +1811,15 @@ async function saveSimpleListItem(){
           )
         : null;
 
+    const estadoSeleccionado =
+      document.getElementById('generalStatus')?.value === 'inactive'
+        ? 'Inactivo'
+        : 'Activo';
+
     const medioPagoApi = {
       idMedioPago: existing?.id || '',
       nombre: value,
-      estado: existing
-        ? (existing.active ? 'Activo' : 'Inactivo')
-        : 'Activo'
+      estado: estadoSeleccionado
     };
 
     try{
