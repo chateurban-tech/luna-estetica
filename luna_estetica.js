@@ -57,7 +57,7 @@ function goLanding(){
 function hideAll(){['landing','patient','admin'].forEach(id=>document.getElementById(id).classList.add('hidden'))}
 const APP_CONFIG = Object.freeze({
   // Reemplaza esta URL cuando publiques el Worker.
-  API_URL: 'https://luna-estetica.chateurban.workers.dev',
+  API_URL: 'https://luna-estetica-api.chateurban.workers.dev',
   API_TIMEOUT_MS: 15000
 });
 
