@@ -1,54 +1,7 @@
-const patients=[
- {
-  name:'Andrea Ramírez',firstName:'Andrea',lastName:'Ramírez',dni:'74251863',cell:'987 654 321',age:'30 años',
-  last:'10 sep 2026',birthDate:'1996-09-14',district:'Miraflores',occupation:'Diseñadora',branch:'Sede 1',
-  referral:'Instagram',allergy:'Alergia leve a fragancias con alto contenido de alcohol.',hasAttention:true,
-  appointments:[
-   {id:1001,date:'2026-09-10',branch:'Sede 1',specialist:'Brenda Ramírez',diagnoses:['Piel mixta','Manchas'],
-    recommendation:'Mantener hidratación y fotoprotección diaria.',
-    routine:'Limpiador suave, sérum hidratante y protector solar FPS 50.',
-    observations:'Buena tolerancia al procedimiento.',
-    treatments:[{name:'Hydra Facial',price:79}],products:[{name:'Sérum hidratante',qty:1,price:49}],
-    payment:'Yape',discount:0,totalText:'S/ 128.00',nextMode:'date',nextRecommendation:'2026-10-08'}
-  ]
- },
- {
-  name:'Lucía Torres',firstName:'Lucía',lastName:'Torres',dni:'70123456',cell:'965 220 814',age:'28 años',
-  last:'08 sep 2026',birthDate:'1998-09-21',district:'San Isidro',occupation:'Administradora',branch:'Sede 1',
-  referral:'Recomendación',allergy:'Sin información registrada.',hasAttention:true,
-  appointments:[
-   {id:1002,date:'2026-09-08',branch:'Sede 1',specialist:'Valeria Torres',diagnoses:['Piel seca'],
-    recommendation:'Reforzar hidratación.',
-    routine:'Limpieza suave e hidratación mañana y noche.',
-    observations:'',treatments:[{name:'Limpieza profunda',price:95}],products:[],
-    payment:'Tarjeta',discount:0,totalText:'S/ 95.00',nextMode:'approx',nextRecommendation:'En 4 semanas'}
-  ]
- },
- {
-  name:'Richard Barzola',firstName:'Richard',lastName:'Barzola',dni:'76543210',cell:'998 701 246',age:'34 años',
-  last:'05 sep 2026',birthDate:'1992-10-03',district:'Santiago de Surco',occupation:'Ingeniero',branch:'Sede 2',
-  referral:'Google Maps',allergy:'Sin información registrada.',hasAttention:true,
-  appointments:[
-   {id:1003,date:'2026-09-05',branch:'Sede 2',specialist:'Brenda Ramírez',diagnoses:['Poros abiertos'],
-    recommendation:'Evitar productos abrasivos.',
-    routine:'Limpieza suave y protector solar.',
-    observations:'',treatments:[{name:'Peeling facial',price:110}],products:[],
-    payment:'Efectivo',discount:0,totalText:'S/ 110.00',nextMode:'approx',nextRecommendation:'En 3 semanas'}
-  ]
- },
- {
-  name:'Camila Pérez',firstName:'Camila',lastName:'Pérez',dni:'70111222',cell:'958 111 220',age:'27 años',
-  last:'07 sep 2026',birthDate:'1999-09-23',district:'Miraflores',occupation:'Marketing',branch:'Sede 1',
-  referral:'TikTok',allergy:'Sin información registrada.',hasAttention:true,
-  appointments:[
-   {id:1004,date:'2026-09-07',branch:'Sede 1',specialist:'Valeria Torres',diagnoses:['Piel sensible'],
-    recommendation:'Usar productos sin fragancia.',
-    routine:'Hidratante calmante y protector solar.',
-    observations:'',treatments:[{name:'Limpieza profunda',price:95}],products:[],
-    payment:'Yape',discount:0,totalText:'S/ 95.00',nextMode:'approx',nextRecommendation:'En 4 semanas'}
-  ]
- }
-];
+let patients = [];
+let patientsLoaded = false;
+let patientsLoadingPromise = null;
+
 function goLanding(){
  hideAll();
  document.getElementById('landing').classList.remove('hidden');
@@ -113,6 +66,178 @@ async function enviarApi(accion, datos = {}) {
     clearTimeout(timeoutId);
   }
 }
+
+function normalizarFechaApi(valor) {
+  if (!valor) return '';
+
+  const texto = String(valor);
+
+  // Apps Script serializa las fechas como ISO.
+  // Para la UI solo necesitamos AAAA-MM-DD.
+  if (texto.includes('T')) {
+    return texto.split('T')[0];
+  }
+
+  return texto.slice(0, 10);
+}
+
+
+function calcularEdadDesdeIso(fechaIso) {
+  if (!fechaIso) return '';
+
+  const partes = fechaIso.split('-').map(Number);
+
+  if (partes.length !== 3 || partes.some(Number.isNaN)) {
+    return '';
+  }
+
+  const [anio, mes, dia] = partes;
+  const hoy = new Date();
+
+  let edad = hoy.getFullYear() - anio;
+
+  const cumplio =
+    (hoy.getMonth() + 1 > mes) ||
+    (
+      hoy.getMonth() + 1 === mes &&
+      hoy.getDate() >= dia
+    );
+
+  if (!cumplio) edad--;
+
+  return edad >= 0 ? `${edad} años` : '';
+}
+
+
+function formatearCelularUI(valor) {
+  const celular = String(valor || '').replace(/\D/g, '');
+
+  if (celular.length !== 9) {
+    return String(valor || '');
+  }
+
+  return `${celular.slice(0, 3)} ${celular.slice(3, 6)} ${celular.slice(6)}`;
+}
+
+
+function mapearPacienteApi(item) {
+  const fechaNacimiento =
+    normalizarFechaApi(item.fechaNacimiento);
+
+  return {
+    idPaciente:
+      String(item.idPaciente || '').trim(),
+
+    name:
+      `${item.nombre || ''} ${item.apellido || ''}`.trim(),
+
+    firstName:
+      String(item.nombre || '').trim(),
+
+    lastName:
+      String(item.apellido || '').trim(),
+
+    dni:
+      String(item.dni || '').trim(),
+
+    cell:
+      formatearCelularUI(item.celular),
+
+    age:
+      calcularEdadDesdeIso(fechaNacimiento),
+
+    last:
+      'Sin atenciones',
+
+    birthDate:
+      fechaNacimiento,
+
+    district:
+      String(item.distrito || '').trim() || 'No indicado',
+
+    occupation:
+      String(item.ocupacion || '').trim() || 'No indicado',
+
+    branch:
+      String(item.sede || '').trim() || 'No indicada',
+
+    referral:
+      String(item.comoNosConocio || '').trim() || 'No indicado',
+
+    allergy:
+      String(item.alergiasEnfermedades || '').trim() ||
+      'Sin información registrada.',
+
+    previousFaceProcedure:
+      String(item.intervencionPrevia || '').trim() || 'No indicado',
+
+    previousFaceProcedureDetails:
+      String(item.detalleIntervencion || '').trim(),
+
+    firstFacialCleaning:
+      String(item.primeraLimpiezaFacial || '').trim() || 'No indicado',
+
+    consentAccepted:
+      item.consentimientoAceptado === true,
+
+    consentVersion:
+      String(item.versionConsentimiento || '').trim(),
+
+    fechaRegistro:
+      item.fechaRegistro || null,
+
+    estado:
+      String(item.estado || '').trim(),
+
+    hasAttention:
+      false,
+
+    appointments:
+      []
+  };
+}
+
+
+async function cargarPacientesDesdeApi({ force = false } = {}) {
+  if (patientsLoaded && !force) {
+    return patients;
+  }
+
+  if (patientsLoadingPromise && !force) {
+    return patientsLoadingPromise;
+  }
+
+  patientsLoadingPromise = (async () => {
+    const resultado = await enviarApi('listarPacientes');
+
+    const registros = Array.isArray(resultado?.pacientes)
+      ? resultado.pacientes
+      : [];
+
+    patients = registros
+      .filter(item =>
+        String(item.estado || '').trim().toLowerCase() !== 'inactivo'
+      )
+      .map(mapearPacienteApi)
+      .sort((a, b) => {
+        const fa = new Date(a.fechaRegistro || 0).getTime();
+        const fb = new Date(b.fechaRegistro || 0).getTime();
+        return fb - fa;
+      });
+
+    patientsLoaded = true;
+    refreshPatientLists();
+
+    return patients;
+  })();
+
+  try {
+    return await patientsLoadingPromise;
+  } finally {
+    patientsLoadingPromise = null;
+  }
+}
+
 let selectedPatientBranch = '';
 
 function showPatient(branch=''){
@@ -386,8 +511,10 @@ async function registerPatientFromForm(){
       consentimientoAceptado: document.getElementById('consent')?.checked === true
     };
 
-    const resultado = await enviarApi('registrarPaciente', { paciente: pacienteApi });
-    registrarPacienteLocal(pacienteApi, resultado.idPaciente);
+    await enviarApi('registrarPaciente', { paciente: pacienteApi });
+
+    // Sheets es la fuente de verdad: recargamos el listado real.
+    await cargarPacientesDesdeApi({ force: true });
 
     const successText = document.querySelector('.step[data-step="3"] .success .muted');
     if(successText){
@@ -400,45 +527,6 @@ async function registerPatientFromForm(){
     toast(error.message || 'No se pudo registrar al paciente.');
     return false;
   }
-}
-
-function registrarPacienteLocal(datos, idPaciente){
-  const formattedCell = datos.celular.length === 9
-    ? `${datos.celular.slice(0,3)} ${datos.celular.slice(3,6)} ${datos.celular.slice(6)}`
-    : datos.celular;
-
-  const fullName = `${datos.nombre} ${datos.apellido}`.trim();
-  const patient = {
-    idPaciente,
-    name: fullName,
-    firstName: datos.nombre,
-    lastName: datos.apellido,
-    dni: datos.dni,
-    cell: formattedCell,
-    age: document.getElementById('ageField')?.value || '',
-    last: 'Sin atenciones',
-    birthDate: datos.fechaNacimiento,
-    district: datos.distrito,
-    occupation: datos.ocupacion || 'No indicado',
-    branch: selectedPatientBranch || 'Sede Villasol',
-    referral: datos.comoNosConocio || 'No indicado',
-    allergy: datos.alergiasEnfermedades || 'Sin información registrada.',
-    previousFaceProcedure: datos.intervencionPrevia,
-    previousFaceProcedureDetails: datos.detalleIntervencion,
-    firstFacialCleaning: datos.primeraLimpiezaFacial,
-    consentAccepted: datos.consentimientoAceptado,
-    hasAttention: false,
-    appointments: []
-  };
-
-  const existingIndex = patients.findIndex(p => p.dni === datos.dni);
-  if(existingIndex >= 0){
-    patients[existingIndex] = {...patients[existingIndex], ...patient};
-  }else{
-    patients.unshift(patient);
-  }
-
-  refreshPatientLists();
 }
 
 function refreshPatientLists(){
@@ -468,7 +556,7 @@ refs.forEach(r=>{
   refEl.appendChild(b);
 });
 
-let selectedPatientDni = '74251863';
+let selectedPatientDni = '';
 
 function patientHtml(p){
   const safeDni = String(p.dni).replace(/'/g,"");
@@ -995,7 +1083,7 @@ function showSettingsTab(tab, el){
 
 
 function getUpcomingBirthdays(list){
-  const today = new Date('2026-09-10T10:00:00');
+  const today = new Date();
   return list.map(p => {
     const birth = new Date(p.birthDate + 'T00:00:00');
     const nextBirthday = new Date(today.getFullYear(), birth.getMonth(), birth.getDate());
@@ -1650,6 +1738,13 @@ goLanding();
 cargarEspecialistasDesdeApi().catch(error => {
   console.warn(
     'No se pudieron precargar los especialistas:',
+    error
+  );
+});
+
+cargarPacientesDesdeApi().catch(error => {
+  console.warn(
+    'No se pudieron precargar los pacientes:',
     error
   );
 });
