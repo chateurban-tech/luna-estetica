@@ -56,7 +56,8 @@ function goLanding(){
 }
 function hideAll(){['landing','patient','admin'].forEach(id=>document.getElementById(id).classList.add('hidden'))}
 const APP_CONFIG = Object.freeze({
-  // Reemplaza esta URL cuando publiques el Worker.
+  // El frontend se comunica únicamente con el proxy de Cloudflare.
+  // La URL /exec de Apps Script se configura solo en APPS_SCRIPT_URL dentro del Worker.
   API_URL: 'https://luna-estetica-api.chateurban.workers.dev',
   API_TIMEOUT_MS: 15000
 });
@@ -92,10 +93,11 @@ async function enviarApi(accion, datos = {}) {
     }
 
     if (!respuesta.ok || !resultado?.ok) {
-      throw new Error(
+      const mensaje =
         resultado?.mensaje ||
-        'La operación no pudo completarse.'
-      );
+        `La operación no pudo completarse (HTTP ${respuesta.status}).`;
+
+      throw new Error(mensaje);
     }
 
     return resultado;
@@ -324,7 +326,7 @@ async function patientNext(){
     const beforeBirthday = (today.getMonth() < birth.getMonth()) ||
       (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
     if(beforeBirthday) age--;
-    if(age < 18){toast('Debes ser mayor de 18 años para registrarte.');return}
+    if(age < 18){toast('Debes tener 18 años o más para registrarte.');return}
   }
 
   if(pStep===2){
