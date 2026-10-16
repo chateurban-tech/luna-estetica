@@ -1663,12 +1663,10 @@ function asegurarGeneralStatusField(){
     wrap.appendChild(label);
     wrap.appendChild(select);
 
-    const parent = input.parentElement;
-    if(parent){
-      parent.insertAdjacentElement('afterend', wrap);
-    }else{
-      modal.appendChild(wrap);
-    }
+    // Insertarlo inmediatamente después del input, dentro del mismo modal.
+    // Antes se insertaba después del contenedor padre y podía quedar fuera
+    // de la tarjeta visible del modal.
+    input.insertAdjacentElement('afterend', wrap);
   }
 
   return {
