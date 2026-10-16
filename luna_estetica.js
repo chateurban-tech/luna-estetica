@@ -1392,7 +1392,99 @@ function renderAppointmentPaymentMethods(){
     select.value = previous;
   }
 }
-let appointmentStatusesCatalog = ['En agenda', 'Confirmada', 'Pendiente', 'Cancelada'];
+let appointmentStatusesCatalog = [];
+let appointmentStatusesLoaded = false;
+let appointmentStatusesLoadingPromise = null;
+
+async function cargarEstadosCitaDesdeApi({ force = false } = {}) {
+  if (appointmentStatusesLoaded && !force) {
+    return appointmentStatusesCatalog;
+  }
+
+  if (appointmentStatusesLoadingPromise && !force) {
+    return appointmentStatusesLoadingPromise;
+  }
+
+  appointmentStatusesLoadingPromise = (async () => {
+    const resultado = await enviarApi('listarEstadosCita');
+
+    const registros = Array.isArray(resultado?.estadosCita)
+      ? resultado.estadosCita
+      : [];
+
+    appointmentStatusesCatalog = registros.map(item => ({
+      id: String(item.idEstadoCita || '').trim(),
+      name: String(item.nombre || '').trim(),
+      active: String(item.estado || '').trim().toLowerCase() === 'activo'
+    }));
+
+    appointmentStatusesLoaded = true;
+
+    renderAppointmentStatusesSettings();
+    renderAppointmentStatusOptions();
+
+    return appointmentStatusesCatalog;
+  })();
+
+  try {
+    return await appointmentStatusesLoadingPromise;
+  } finally {
+    appointmentStatusesLoadingPromise = null;
+  }
+}
+
+function renderAppointmentStatusesSettings(){
+  const statuses = document.getElementById('statusesList');
+  if(!statuses) return;
+
+  if(!appointmentStatusesCatalog.length){
+    statuses.innerHTML =
+      '<div class="empty">No hay estados de cita registrados.</div>';
+    return;
+  }
+
+  statuses.innerHTML = appointmentStatusesCatalog.map(item => `
+    <div class="settings-mini-row">
+      <span>
+        ${esc(item.name)}
+        <small class="muted"> · ${item.active ? 'Activo' : 'Inactivo'}</small>
+      </span>
+      <button
+        class="btn btn-inline-edit"
+        type="button"
+        onclick="openSimpleListModal('status', '${String(item.id).replace(/'/g, "\'")}')">
+        Editar
+      </button>
+    </div>
+  `).join('');
+}
+
+function renderAppointmentStatusOptions(){
+  const activeStatuses = appointmentStatusesCatalog.filter(item => item.active);
+
+  const possibleIds = [
+    'appointmentStatus',
+    'statusAppointment',
+    'appointmentState'
+  ];
+
+  for(const id of possibleIds){
+    const select = document.getElementById(id);
+    if(!select) continue;
+
+    const previous = select.value;
+
+    select.innerHTML =
+      '<option value="">Seleccionar</option>' +
+      activeStatuses
+        .map(item => `<option value="${esc(item.name)}">${esc(item.name)}</option>`)
+        .join('');
+
+    if(activeStatuses.some(item => item.name === previous)){
+      select.value = previous;
+    }
+  }
+}
 let consentVersion = 'Consentimiento v1.0';
 let consentText = 'He sido informado(a) sobre el procedimiento, sus posibles reacciones y cuidados posteriores. Acepto realizarme el tratamiento de forma voluntaria.';
 
@@ -1615,12 +1707,7 @@ function renderGeneralSettings(){
   }
 
   if(statuses){
-    statuses.innerHTML = appointmentStatusesCatalog.map((item, i) => `
-      <div class="settings-mini-row">
-        <span>${item}</span>
-        <button class="btn btn-inline-edit" type="button" onclick="openSimpleListModal('status', ${i})">Editar</button>
-      </div>
-    `).join('');
+    renderAppointmentStatusesSettings();
   }
 
   if(consentBox){
@@ -1689,6 +1776,11 @@ function openSimpleListModal(type, index = null){
       ? paymentMethodsCatalog.find(p => String(p.id) === String(index))
       : null;
 
+  const statusItem =
+    type === 'status' && index !== null
+      ? appointmentStatusesCatalog.find(s => String(s.id) === String(index))
+      : null;
+
   const cfg = {
     branch: {
       title: index === null ? 'Nueva sede' : 'Editar sede',
@@ -1702,9 +1794,8 @@ function openSimpleListModal(type, index = null){
     },
     status: {
       title: index === null ? 'Nuevo estado de cita' : 'Editar estado de cita',
-      label: 'ESTADO',
-      placeholder: 'Ej. Reprogramada',
-      source: appointmentStatusesCatalog
+      label: 'ESTADO DE CITA',
+      placeholder: 'Ej. Reprogramada'
     }
   }[type];
 
@@ -1718,24 +1809,27 @@ function openSimpleListModal(type, index = null){
     input.value = branchItem?.name || '';
   }else if(type === 'payment'){
     input.value = paymentItem?.name || '';
-  }else{
-    input.value =
-      index === null
-        ? ''
-        : (cfg.source[index] || '');
+  }else if(type === 'status'){
+    input.value = statusItem?.name || '';
   }
 
   const statusField = asegurarGeneralStatusField();
 
   if(statusField){
-    const usesStatus = type === 'branch' || type === 'payment';
+    const usesStatus =
+      type === 'branch' ||
+      type === 'payment' ||
+      type === 'status';
+
     statusField.wrap.style.display = usesStatus ? '' : 'none';
 
     if(usesStatus){
       const currentActive =
         type === 'branch'
           ? (branchItem?.active ?? true)
-          : (paymentItem?.active ?? true);
+          : type === 'payment'
+            ? (paymentItem?.active ?? true)
+            : (statusItem?.active ?? true);
 
       statusField.select.value =
         currentActive
@@ -1762,6 +1856,11 @@ async function saveSimpleListItem(){
     return;
   }
 
+  const estadoSeleccionado =
+    document.getElementById('generalStatus')?.value === 'inactive'
+      ? 'Inactivo'
+      : 'Activo';
+
   if(generalEditType === 'branch'){
     const existing =
       generalEditIndex !== null && generalEditIndex !== undefined
@@ -1769,11 +1868,6 @@ async function saveSimpleListItem(){
             s => String(s.id) === String(generalEditIndex)
           )
         : null;
-
-    const estadoSeleccionado =
-      document.getElementById('generalStatus')?.value === 'inactive'
-        ? 'Inactivo'
-        : 'Activo';
 
     const sedeApi = {
       idSede: existing?.id || '',
@@ -1808,11 +1902,6 @@ async function saveSimpleListItem(){
             p => String(p.id) === String(generalEditIndex)
           )
         : null;
-
-    const estadoSeleccionado =
-      document.getElementById('generalStatus')?.value === 'inactive'
-        ? 'Inactivo'
-        : 'Activo';
 
     const medioPagoApi = {
       idMedioPago: existing?.id || '',
@@ -1853,20 +1942,52 @@ async function saveSimpleListItem(){
     return;
   }
 
-  const source = {
-    status: appointmentStatusesCatalog
-  }[generalEditType];
+  if(generalEditType === 'status'){
+    const existing =
+      generalEditIndex !== null && generalEditIndex !== undefined
+        ? appointmentStatusesCatalog.find(
+            s => String(s.id) === String(generalEditIndex)
+          )
+        : null;
 
-  if(!source) return;
+    const estadoCitaApi = {
+      idEstadoCita: existing?.id || '',
+      nombre: value,
+      estado: estadoSeleccionado
+    };
 
-  if(generalEditIndex === null || generalEditIndex === undefined){
-    source.push(value);
-  } else {
-    source[generalEditIndex] = value;
+    try{
+      await enviarApi(
+        'guardarEstadoCita',
+        { estadoCita: estadoCitaApi }
+      );
+
+      await cargarEstadosCitaDesdeApi({
+        force: true
+      });
+
+      generalEditIndex = null;
+      closeSimpleListModal();
+
+      toast(
+        estadoCitaApi.idEstadoCita
+          ? 'Estado de cita actualizado correctamente.'
+          : 'Estado de cita registrado correctamente.'
+      );
+    }catch(error){
+      console.error(
+        'Error al guardar estado de cita:',
+        error
+      );
+
+      toast(
+        error.message ||
+        'No se pudo guardar el estado de cita.'
+      );
+    }
+
+    return;
   }
-
-  renderGeneralSettings();
-  closeSimpleListModal();
 }
 
 function openConsentModal(){
@@ -2177,6 +2298,13 @@ cargarSedesDesdeApi().catch(error => {
 cargarMediosPagoDesdeApi().catch(error => {
   console.warn(
     'No se pudieron precargar los medios de pago:',
+    error
+  );
+});
+
+cargarEstadosCitaDesdeApi().catch(error => {
+  console.warn(
+    'No se pudieron precargar los estados de cita:',
     error
   );
 });
